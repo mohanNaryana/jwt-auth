@@ -37,17 +37,37 @@ app.post("/signup",async (req,res)=>{
 
 app.post("/signin",async (req,res)=>{
     const { username , password } = req.body
-    const user = users.find(user => user.username === username)
-    if(!user) return res.status(400).json({
-        msg : "user not found"
-    })
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(400).json({ error: 'Invalid password' });
+    
+    try{
+        const user = await prisma.users.findUnique({
+            where : {
+                username : username
+            }
+        })
+    
+        if(!user){
+            res.status(404).json({
+                msg : "user not found"
+            })
+        }
+    
+        const validpassword = await bcrypt.compare(password,user.password)
+        if(!validpassword){
+            res.json({
+                msg : "incorrect password"
+            })
+        }
+        const token = jwt.sign({ username: user.username }, jwt_secret, { expiresIn: '1h' });
 
-    // Generate a token
-    const token = jwt.sign({ username: user.username }, jwt_secret, { expiresIn: '1h' });
-
-    res.json({ message: 'Login successful', token });
+        res.json({ message: 'Login successful', token });
+    }
+    catch(error){
+        console.error(error)
+        res.status(404).json({
+            msg : "unable to login"
+        })
+    }
+    
 })
 
 app.get("/",(req,res)=>{ 
